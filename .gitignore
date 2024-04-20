@@ -160,5 +160,6 @@ cython_debug/
 #.idea/
 
 #This python
+.DS_STORE
 data/
 model/
