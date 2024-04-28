@@ -674,13 +674,13 @@ class CaptioningDataset(BaseDataset):
         self.mask_prob = mask_prob
 
     @staticmethod
-    def get_index_files(split, task=None, dir='/kaggle/working/beit3_img_captioning/'):
+    def get_index_files(split, task=None):
         if split == "train":
-            return (f"{dir}{task}.train.jsonl", )
+            return (f"{task}.train.jsonl", )
         elif split == "val":
-            return (f"{dir}{task}.val.jsonl", )
+            return (f"{task}.val.jsonl", )
         elif split == "test":
-            return (f"{dir}{task}.test.jsonl", )
+            return (f"{task}.test.jsonl", )
         else:
             raise RuntimeError("split %s is not found!" % split)
 
