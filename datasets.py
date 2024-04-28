@@ -207,7 +207,7 @@ def _make_captioning_coco_origin_dataset_index(
     image_counter = set()
     print("read %s" % coco_split_json_file)
     with open(coco_split_json_file, mode="r", encoding="utf-8") as reader:
-        data = json.loads(reader)
+        data = json.load(reader)
         for item in data["annotations"]:
             image_path = os.path.join(data_path, f"{split_name}{year}", f"{item['image_id']:012d}.jpg") #COCO_{split_name}{year}_
             if split_name == "train":
