@@ -202,7 +202,7 @@ def _make_captioning_coco_origin_dataset_index(
         split_name="train",
         year="2017"
 ):
-    coco_split_json_file = os.path.join(data_index_file)
+    coco_split_json_file = os.path.join(data_index_file, f"captions_{split_name}{year}.json")
     items = []
     image_counter = set()
     print("read %s" % coco_split_json_file)
