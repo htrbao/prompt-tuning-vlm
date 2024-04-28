@@ -434,21 +434,21 @@ def beit3_large_patch16_480_captioning(pretrained=False, **kwargs):
 
 ### Captioning with Prompt
 @register_model
-def beit3_base_patch16_224_captioning_with_gott(pretrained=False, **kwargs):
+def beit3_base_patch16_224_with_gott_captioning(pretrained=False, **kwargs):
     args = _get_base_config(**kwargs)
     model = BEiT3ForCaptioningGoTTuning(args, **kwargs)
     return model
 
 
 @register_model
-def beit3_base_patch16_480_captioning_with_gott(pretrained=False, **kwargs):
+def beit3_base_patch16_480_with_gott_captioning(pretrained=False, **kwargs):
     args = _get_base_config(img_size=480, **kwargs)
     model = BEiT3ForCaptioningGoTTuning(args, **kwargs)
     return model
 
 
 @register_model
-def beit3_large_patch16_480_captioning_with_gott(pretrained=False, **kwargs):
+def beit3_large_patch16_480_with_gott_captioning(pretrained=False, **kwargs):
     args = _get_large_config(img_size=480, **kwargs)
     model = BEiT3ForCaptioningGoTTuning(args, **kwargs)
     return model
