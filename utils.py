@@ -23,7 +23,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import inf
 from torchmetrics import Metric
-# from tensorboardX import SummaryWriter
+from tensorboardX import SummaryWriter
 
 
 def bool_flag(s):
@@ -188,7 +188,7 @@ class MetricLogger(object):
 
 class TensorboardLogger(object):
     def __init__(self, log_dir):
-        # self.writer = SummaryWriter(logdir=log_dir)
+        self.writer = SummaryWriter(logdir=log_dir)
         self.step = 0
 
     def set_step(self, step=None):
