@@ -734,10 +734,10 @@ class CaptioningDataset(BaseDataset):
         _make_captioning_coco_karpathy_dataset_index(data_path, tokenizer, split=("test", ), split_name="test")
 
     @staticmethod
-    def make_coco_captioning_dataset_index_from_origin(data_path, tokenizer):
-        _make_captioning_coco_origin_dataset_index(data_path, tokenizer, split_name="train")
-        _make_captioning_coco_origin_dataset_index(data_path, tokenizer, split_name="val")
-        _make_captioning_coco_origin_dataset_index(data_path, tokenizer, split_name="test")
+    def make_coco_captioning_dataset_index_from_origin(data_index_file, data_path, tokenizer, year="2017"):
+        _make_captioning_coco_origin_dataset_index(data_index_file, data_path, tokenizer, split_name="train", year=year)
+        _make_captioning_coco_origin_dataset_index(data_index_file, data_path, tokenizer, split_name="train", year=year)
+        _make_captioning_coco_origin_dataset_index(data_index_file, data_path, tokenizer, split_name="train", year=year)
 
     @staticmethod
     def make_nocaps_captioning_dataset_index(data_path):
