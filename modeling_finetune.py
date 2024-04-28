@@ -437,8 +437,7 @@ def beit3_large_patch16_480_captioning(pretrained=False, **kwargs):
 def beit3_base_patch16_224_with_gott_captioning(pretrained=False, **kwargs):
     args = _get_base_config(**kwargs)
     kwargs["ori_ctx_init"] = "Captioning for picture :"
-    kwargs["ctx_init"] = torch.IntTensor([[0, 25265,   125,    17,  1129,   216,     2]]),
-
+    kwargs["ctx_init"] = torch.IntTensor([[0, 25265,   125,    17,  1129,   216,     2]])
     model = BEiT3ForCaptioningGoTTuning(args, **kwargs)
     return model
 
@@ -447,7 +446,7 @@ def beit3_base_patch16_224_with_gott_captioning(pretrained=False, **kwargs):
 def beit3_base_patch16_480_with_gott_captioning(pretrained=False, **kwargs):
     args = _get_base_config(img_size=480, **kwargs)
     kwargs["ori_ctx_init"] = "Captioning for picture :"
-    kwargs["ctx_init"] = torch.IntTensor([[0, 25265,   125,    17,  1129,   216,     2]]),
+    kwargs["ctx_init"] = torch.IntTensor([[0, 25265,   125,    17,  1129,   216,     2]])
     model = BEiT3ForCaptioningGoTTuning(args, **kwargs)
     return model
 
@@ -456,7 +455,7 @@ def beit3_base_patch16_480_with_gott_captioning(pretrained=False, **kwargs):
 def beit3_large_patch16_480_with_gott_captioning(pretrained=False, **kwargs):
     args = _get_large_config(img_size=480, **kwargs)
     kwargs["ori_ctx_init"] = "Captioning for picture :"
-    kwargs["ctx_init"] = torch.IntTensor([[0, 25265,   125,    17,  1129,   216,     2]]),
+    kwargs["ctx_init"] = torch.IntTensor([[0, 25265,   125,    17,  1129,   216,     2]])
     model = BEiT3ForCaptioningGoTTuning(args, **kwargs)
     return model
 ###

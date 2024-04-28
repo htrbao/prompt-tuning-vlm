@@ -1,6 +1,6 @@
 python run_beit3_finetuning.py \
         --device cuda \
-        --model beit3_base_patch16_224_captioning_with_gott \
+        --model beit3_base_patch16_224_with_gott \
         --input_size 224 \
         --task coco_captioning \
         --batch_size 32 \
@@ -10,11 +10,11 @@ python run_beit3_finetuning.py \
         --epochs 10 \
         --warmup_epochs 1 \
         --drop_path 0.1 \
-        --sentencepiece_model /kaggle/input/beit3-model/beit3.spm \
-        --finetune /kaggle/input/beit3-model/beit3_base_patch16_480_coco_captioning.pth \
-        --data_path /kaggle/working/graph-of-thoughts-tuning \
+        --sentencepiece_model ./model/beit3.spm \
+        --finetune /model/beit3_base_patch16_480_coco_captioning.pth \
+        --data_path . \
         --output_dir . \
-        --log_dir /kaggle/working/graph-of-thoughts-tuning \
+        --log_dir . \
         --weight_decay 0.05 \
         --seed 42 \
         --save_ckpt_freq 5 \
