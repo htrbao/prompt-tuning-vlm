@@ -196,6 +196,9 @@ def get_args():
     parser.add_argument('--initial_scale_power', type=int, default=16)
     parser.add_argument('--zero_stage', default=0, type=int,
                         help='ZeRO optimizer stage (default: 0)')
+    
+    # prompt tuning parameters
+    parser.add_argument('--prompttune', )
 
     known_args, _ = parser.parse_known_args()
 
@@ -265,7 +268,7 @@ def main(args, ds_init):
 
     if args.finetune:
         utils.load_model_and_may_interpolate(args.finetune, model, args.model_key, args.model_prefix)
-    if args.prompttune:
+    elif args.prompttune:
         utils.load_model_and_may_interpolate(args.finetune, model, args.model_key, args.model_prefix)
         
 
