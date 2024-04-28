@@ -51,9 +51,7 @@ class PromptLearner(nn.Module):
 
     def forward(self, text_embeds: torch.Tensor):
         ctx = self.ctx.unsqueeze(0).expand(text_embeds.shape[0], -1, -1)
-        print(ctx.shape)
         prompts = torch.cat((ctx, text_embeds[:, 1 : 64 - (ctx.shape[1] - 1), :]), 1)
-        print(prompts.shape)
         return prompts
 
 
