@@ -117,7 +117,7 @@ class Beit3Model:
 model = Beit3Model(device="cpu")
 prefix_s = ""
 for i in range(10):
-    ans = model.get_answer(Image.open("data/val2014/COCO_val2014_000000579468.jpg"),
+    ans = model.get_answer(Image.open("data/val2014/COCO_val2014_000000581087.jpg"),
                         prefix_s + ' ' + s)
     print(ans)
     prefix_s = prefix_s + ' ' + ans

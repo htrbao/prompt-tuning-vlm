@@ -158,34 +158,77 @@ def _make_retrieval_coco_karpathy_dataset_index(
 def _make_captioning_coco_karpathy_dataset_index(
         data_path, 
         tokenizer, 
-        image_dir,
         split=("train", "restval"), 
         split_name="train",
-        type="avg", 
+        file_name="captions_val2017.json"
 ):
+    coco_karpathy_split_json_file = os.path.join(data_path, "dataset_coco.json")
     items = []
     image_counter = set()
-    coco_karpathy_split_json_file = os.path.join(data_path)
     print("read %s" % coco_karpathy_split_json_file)
     with open(coco_karpathy_split_json_file, mode="r", encoding="utf-8") as reader:
-        data = json.load(reader)
-        for key, item in data.items():
-            for cap in item["caption"]:
-                tokens = tokenizer.tokenize(cap["caption"])
-                token_ids = tokenizer.convert_tokens_to_ids(tokens)
-                for vidname in item["videos"]:
-                    vidname_image = os.path.join(image_dir, f"{type}{vidname.replace('.mp4', '')}phase{cap['label']}.png")
-                    if os.path.isfile(vidname_image):
+        data = json.loads(reader.read())
+        for item in data["images"]:
+            if item["split"] in split:
+                image_path = os.path.join(item["filepath"], item["filename"])
+                if item["split"] in ["train", "restval"]:
+                    for sent in item["sentences"]:
+                        tokens = tokenizer.tokenize(sent["raw"])
+                        token_ids = tokenizer.convert_tokens_to_ids(tokens)
                         items.append({
-                                "image_path": vidname_image, 
+                                "image_path": image_path, 
                                 "text_segment": token_ids, 
-                                "image_id": len(image_counter), 
+                                "image_id": item["cocoid"], 
                         })
-                    if vidname_image not in image_counter:
-                        image_counter.add(vidname_image)
+                else:
+                    items.append({
+                                "image_path": image_path, 
+                                "text_segment": None, 
+                                "image_id": item["cocoid"], 
+                    })
+                if image_path not in image_counter:
+                    image_counter.add(image_path)
     print("Find %d images and %d image-text pairs for karpathy dataset %s split !" % \
         (len(image_counter), len(items), split_name))
-    index_file = "coco_captioning.%s.jsonl" % split_name
+    index_file = os.path.join(data_path, "coco_captioning.%s.jsonl" % split_name)
+    _write_data_into_jsonl(items, index_file)
+    pass
+
+
+def _make_captioning_coco_origin_dataset_index(
+        data_index_file,
+        data_path, 
+        tokenizer,
+        split_name="train",
+        year="2017"
+):
+    coco_split_json_file = os.path.join(data_index_file)
+    items = []
+    image_counter = set()
+    print("read %s" % coco_split_json_file)
+    with open(coco_split_json_file, mode="r", encoding="utf-8") as reader:
+        data = json.loads(reader)
+        for item in data["annotations"]:
+            image_path = os.path.join(data_path, f"{split_name}{year}", f"{item['image_id']:012d}.jpg") #COCO_{split_name}{year}_
+            if split_name == "train":
+                tokens = tokenizer.tokenize(item["caption"])
+                token_ids = tokenizer.convert_tokens_to_ids(tokens)
+                items.append({
+                    "image_path": image_path, 
+                    "text_segment": token_ids, 
+                    "image_id": item["image_id"], 
+                })
+            else:
+                items.append({
+                    "image_path": image_path, 
+                    "text_segment": None, 
+                    "image_id": item["image_id"], 
+                })
+            if image_path not in image_counter:
+                image_counter.add(image_path)
+    print("Find %d images and %d image-text pairs for origin dataset %s split !" % \
+        (len(image_counter), len(items), split_name))
+    index_file = os.path.join("coco_captioning.%s.jsonl" % split_name)
     _write_data_into_jsonl(items, index_file)
     pass
 
@@ -689,6 +732,12 @@ class CaptioningDataset(BaseDataset):
         _make_captioning_coco_karpathy_dataset_index(data_path, tokenizer, split=("train", "restval"), split_name="train")
         _make_captioning_coco_karpathy_dataset_index(data_path, tokenizer, split=("val", ), split_name="val")
         _make_captioning_coco_karpathy_dataset_index(data_path, tokenizer, split=("test", ), split_name="test")
+
+    @staticmethod
+    def make_coco_captioning_dataset_index_from_origin(data_path, tokenizer):
+        _make_captioning_coco_origin_dataset_index(data_path, tokenizer, split_name="train")
+        _make_captioning_coco_origin_dataset_index(data_path, tokenizer, split_name="val")
+        _make_captioning_coco_origin_dataset_index(data_path, tokenizer, split_name="test")
 
     @staticmethod
     def make_nocaps_captioning_dataset_index(data_path):
