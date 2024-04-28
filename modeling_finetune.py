@@ -284,12 +284,16 @@ class BEiT3ForCaptioningGoTTuning(BEiT3Wrapper):
             **kwargs
     ):
         super(BEiT3ForCaptioningGoTTuning, self).__init__(args=args)
+        self.freeze_model = kwargs.get("freeze_model", True)
         self.beit3 = BEiT3WithPrefixPrompt(args)
         embed_dim = args.encoder_embed_dim
         prompter = PromptLearner(self.beit3.text_embed, args, **kwargs)
         self.beit3.set_prompter(prompter)
         self.mlm_head = nn.Linear(embed_dim, args.vocab_size)
         self.mlm_head.apply(self._init_weights)
+        if self.freeze_model:
+            for param in self.mlm_head.parameters():
+                param.requires_grad = False
 
     def forward(self, image, text_ids, padding_mask, language_masked_pos, text_len=None, incremental_state=None, **kwargs):
         text_len = text_len if text_len is not None else text_ids.size(1)

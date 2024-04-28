@@ -27,6 +27,7 @@ class Preprocess:
     def __init__(self, tokenizer):
         self.max_len = 64
         self.input_size = 480
+        self.prompt_len = 6
 
         self.tokenizer = tokenizer
         self.transform = transforms.Compose(
@@ -48,7 +49,7 @@ class Preprocess:
 
             tokens = [self.bos_token_id] + tokens[:] + [self.eos_token_id]
             num_tokens = len(tokens)
-            padding_mask = [0] * num_tokens + [1] * (self.max_len - num_tokens)
+            padding_mask = [0] * (num_tokens + self.prompt_len) + [1] * (self.max_len - num_tokens - self.prompt_len)
 
             return (
                 torch.LongTensor(
@@ -79,8 +80,8 @@ class Beit3Model:
     # @lru_cache(maxsize=1)
     def _load_model(self, model_name, model_path, device: str = "cpu"):
         kwargs = {
-            "ori_ctx_init": "this is a",
-            "ctx_init": torch.IntTensor([[0, 127,  18,  10,   2]]),
+            "ori_ctx_init": "Captioning for picture :",
+            "ctx_init": torch.IntTensor([[0, 25265,   125,    17,  1129,   216,     2]]),
         }
         self.model = create_model(
             model_name,
@@ -98,23 +99,29 @@ class Beit3Model:
             XLMRobertaTokenizer(os.path.join(CWD, "model/beit3.spm"))
         )
 
-        # print(self.preprocessor.preprocess("This is a"))
+        # print(self.preprocessor.preprocess(kwargs["ori_ctx_init"]))
         self.model.to(device)
 
-    def get_answer(self, input_img: Image.Image, intput_ques: str):
-        token_ids, padding_mask, _ = self.preprocessor.preprocess(intput_ques)
+    def get_answer(self, input_img: Image.Image, input_ques: str):
+        token_ids, padding_mask, _ = self.preprocessor.preprocess(input_ques)
 
         image_input = self.preprocessor.preprocess(input_img)
         image_input = image_input.to(self.device)
         
         ans, _ = self.model(image_input, token_ids, padding_mask, None)
-        ans = ans[:, len(s.split()) + 1, :]
+        ans = ans[:, len(input_ques.split()) + 5, :]
         ids = torch.argmax(F.log_softmax(ans, dim=-1), dim=1)
+        # ids = torch.argmax(ans, dim=1)
         return self.preprocessor.tokenizer.decode(ids)
         
 model = Beit3Model(device="cpu")
-print(model.get_answer(Image.open("data/val2014/COCO_val2014_000000581655.jpg"),
-                       s))
+prefix_s = ""
+for i in range(10):
+    ans = model.get_answer(Image.open("data/val2014/COCO_val2014_000000579468.jpg"),
+                        prefix_s + ' ' + s)
+    print(ans)
+    prefix_s = prefix_s + ' ' + ans
+    print(prefix_s)
 
 
 

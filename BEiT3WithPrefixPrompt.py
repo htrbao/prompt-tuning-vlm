@@ -88,6 +88,14 @@ class BEiT3WithPrefixPrompt(nn.Module):
             output_projection=None,
             is_encoder_decoder=False,
         )
+        self.freeze_model = kwargs.get("freeze_model", True)
+        if self.freeze_model:
+            for param in self.text_embed.parameters():
+                param.requires_grad = False
+            for param in self.vision_embed.parameters():
+                param.requires_grad = False
+            for param in self.encoder.parameters():
+                param.requires_grad = False
 
     def set_prompter(
             self, prompter: PromptLearner
