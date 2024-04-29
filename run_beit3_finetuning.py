@@ -264,6 +264,7 @@ def main(args, ds_init):
         drop_path_rate=args.drop_path,
         vocab_size=args.vocab_size,
         checkpoint_activations=args.checkpoint_activations,
+        max_length=args.num_max_bpe_tokens
     )
 
     if args.finetune:

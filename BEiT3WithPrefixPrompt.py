@@ -20,7 +20,7 @@ class PromptLearner(nn.Module):
         ctx_init = kwargs.get("ctx_init", None)
         n_ctx = kwargs.get("n_ctx", 2)
         ctx_dim = beit3_text_embed.weight.shape[-1]
-        num_max_bpe_tokens = args.num_max_bpe_tokens
+        max_length = kwargs["max_length"]
 
         self.num_soft_token = 0
 
@@ -49,7 +49,7 @@ class PromptLearner(nn.Module):
         self.ctx_init = ctx_init
         self.n_ctx = n_ctx
         self.ctx_dim = ctx_dim
-        self.max_length = num_max_bpe_tokens
+        self.max_length = max_length
 
     def forward(self, text_embeds: torch.Tensor):
         ctx = self.ctx.unsqueeze(0).expand(text_embeds.shape[0], -1, -1)

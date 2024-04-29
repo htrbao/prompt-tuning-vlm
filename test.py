@@ -67,7 +67,7 @@ class Preprocess:
 class Beit3Model:
     def __init__(
         self,
-        model_name: str = "beit3_base_patch16_480_captioning_with_gott",
+        model_name: str = "beit3_base_patch16_480_with_gott_captioning",
         model_path: str = os.path.join(
             CWD,
             "model/beit3_base_patch16_480_coco_captioning.pth",
@@ -117,7 +117,7 @@ class Beit3Model:
 model = Beit3Model(device="cpu")
 prefix_s = ""
 for i in range(10):
-    ans = model.get_answer(Image.open("data/val2014/COCO_val2014_000000581087.jpg"),
+    ans = model.get_answer(Image.open("data/val2014/COCO_val2014_000000581831.jpg"),
                         prefix_s + ' ' + s)
     print(ans)
     prefix_s = prefix_s + ' ' + ans
