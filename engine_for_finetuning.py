@@ -20,7 +20,7 @@ from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from datasets import get_sentencepiece_model_for_beit3
 
 import utils
-# import wandb
+import wandb
 
 
 class TaskHandler(object):
@@ -316,7 +316,7 @@ class CaptioningHandler(TaskHandler):
         incremental_state = {}
 
         while cur_len <= self.max_len:
-            print(cur_len)
+ 
             next_token_idx = 1
             cur_input_ids_shape = [shape for shape in cur_input_ids.size()]
             cur_input_ids_shape[1] += 5
@@ -331,7 +331,7 @@ class CaptioningHandler(TaskHandler):
             outputs, incremental_state_next = model(
                 image=input_image, text_ids=cur_input_ids, language_masked_pos=None,
                 padding_mask=padding_masks, text_len=cur_len, incremental_state=incremental_state)
-            print("outputs: ", outputs.size())
+      
             incremental_state = incremental_state_next
 
             # assert outputs.shape[1] == token_len
@@ -398,7 +398,7 @@ class CaptioningHandler(TaskHandler):
             for module in incremental_state:
                 for key in incremental_state[module]:
                     result = incremental_state[module][key].index_select(0, beam_idx)
-                    print(result.size())
+  
                     incremental_state[module][key] = result[:,:,:-1-5,:]
             
             next_ids = torch.full(
@@ -580,16 +580,16 @@ def train_one_epoch(
                 "grad_norm": grad_norm, 
             }
 
-            # wandb_kwargs = {
-            #     "loss_scale": loss_scale_value, 
-            #     "lr": max_lr, 
-            #     "min_lr": min_lr, 
-            #     "weight_decay": weight_decay_value, 
-            #     "grad_norm": grad_norm, 
-            #     "loss": loss_value, 
-            #     "acc": results["acc"].item()
-            # }
-            # wandb.log(wandb_kwargs)
+            wandb_kwargs = {
+                "loss_scale": loss_scale_value, 
+                "lr": max_lr, 
+                "min_lr": min_lr, 
+                "weight_decay": weight_decay_value, 
+                "grad_norm": grad_norm, 
+                "loss": loss_value, 
+                "acc": results["acc"].item()
+            }
+            wandb.log(wandb_kwargs)
             log_writer.update(head="opt", **kwargs)
             log_writer.set_step()
 

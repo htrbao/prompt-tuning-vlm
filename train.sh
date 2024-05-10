@@ -22,4 +22,5 @@ CUDA_VISIBLE_DEVICES=2 python run_beit3_finetuning.py \
         --captioning_mask_prob 0.7 \
         --drop_worst_after 12000 \
         --dist_eval \
+        --checkpoint_activations \
         --no_auto_resume
