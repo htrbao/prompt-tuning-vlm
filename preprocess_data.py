@@ -1,8 +1,11 @@
 from datasets import CaptioningDataset
 from transformers import XLMRobertaTokenizer
 
-tokenizer = XLMRobertaTokenizer("/your_beit3_model_path/beit3.spm")
+tokenizer = XLMRobertaTokenizer("model/beit3.spm")
 
-CaptioningDataset.make_coco_captioning_dataset_index(
-    data_path="/path/to/your_data",
+CaptioningDataset.make_coco_captioning_dataset_index_from_origin(
+    data_index_file="data/annotations_trainval2014/annotations",
+    data_path="data",
+    tokenizer=tokenizer,
+    year="2014"
 )

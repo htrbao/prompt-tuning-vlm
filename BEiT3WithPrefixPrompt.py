@@ -27,11 +27,12 @@ class PromptLearner(nn.Module):
         # Init hard prompt if existed
         if "ctx_init" in kwargs:
             # use given words to initialize context vectors
-            n_ctx = len(ctx_init[0])
-            print(n_ctx)
             with torch.no_grad():
                 embedding = beit3_text_embed(ctx_init)
+
+            n_ctx = len(ctx_init[0]) # Remove <bos
             ctx_vectors = embedding[0, : n_ctx - 1, :]
+            n_ctx -= 1
             prompt_prefix = kwargs["ori_ctx_init"]
 
         # Soft prompt
@@ -53,7 +54,7 @@ class PromptLearner(nn.Module):
 
     def forward(self, text_embeds: torch.Tensor):
         ctx = self.ctx.unsqueeze(0).expand(text_embeds.shape[0], -1, -1)
-        prompts = torch.cat((ctx, text_embeds[:, 1 : self.max_length - (ctx.shape[1] - 1), :]), 1)
+        prompts = torch.cat((text_embeds[:, 0, :].unsqueeze(1), ctx[:, 1:,:], text_embeds[:, 1 : self.max_length - (ctx.shape[1] - 1), :]), 1)
         return prompts
 
 
@@ -115,19 +116,22 @@ class BEiT3WithPrefixPrompt(nn.Module):
         assert textual_tokens is not None or visual_tokens is not None
 
         if textual_tokens is None:
+            # print("None textual")
             x = self.vision_embed(visual_tokens, vision_masked_position)
             encoder_padding_mask = None
             multiway_split_position = -1
         elif visual_tokens is None:
-            _x = self.text_embed(textual_tokens)
-            x = self.prompter(_x)
+            # print("None visual")
+            x = self.text_embed(textual_tokens)
+            x = self.prompter(x)
             encoder_padding_mask = text_padding_position
             multiway_split_position = 0
         else:
+            # print("None none")
             x1 = self.vision_embed(visual_tokens, vision_masked_position)
             multiway_split_position = x1.size(1)
-            _x2 = self.text_embed(textual_tokens)
-            x2 = self.prompter(_x2)
+            x2 = self.text_embed(textual_tokens)
+            x2 = self.prompter(x2)
             x = torch.cat([x1, x2], dim=1)
 
             if text_padding_position is not None:
@@ -140,7 +144,6 @@ class BEiT3WithPrefixPrompt(nn.Module):
                 )
             else:
                 encoder_padding_mask = None
-
         encoder_out = self.encoder(
             src_tokens=None,
             encoder_padding_mask=encoder_padding_mask,

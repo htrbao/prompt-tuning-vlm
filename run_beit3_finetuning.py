@@ -13,6 +13,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import json
 import os
+# import wandb
 
 from pathlib import Path
 
@@ -27,7 +28,6 @@ from datasets import create_downstream_dataset
 from utils import NativeScalerWithGradNormCount as NativeScaler
 import utils
 import modeling_finetune
-
 
 def get_args():
     parser = argparse.ArgumentParser('BEiT fine-tuning and evaluation script for image classification', add_help=False)
@@ -228,6 +228,12 @@ def main(args, ds_init):
 
     print(args)
 
+    # for Wandb
+    # wandb.init(
+    #     name=f"{args.model}_{args.task}_{datetime.datetime.now().strftime('%Y_%m_%d')}",
+    #     project="prompt-tuning-vlm-report",
+    # )
+
     device = torch.device(args.device)
 
     # fix the seed for reproducibility
@@ -390,11 +396,11 @@ def main(args, ds_init):
             data_loader_train.sampler.set_epoch(epoch)
         if log_writer is not None:
             log_writer.set_step(epoch * num_training_steps_per_epoch * args.update_freq)
-        train_stats = train_one_epoch(
-            model, data_loader_train, optimizer, device, task_handler, epoch, 
-            epoch * num_training_steps_per_epoch, lr_schedule_values, loss_scaler, 
-            args.clip_grad, args.update_freq, model_ema, log_writer, args.task, mixup_fn,
-        )
+        # train_stats = train_one_epoch(
+        #     model, data_loader_train, optimizer, device, task_handler, epoch, 
+        #     epoch * num_training_steps_per_epoch, lr_schedule_values, loss_scaler, 
+        #     args.clip_grad, args.update_freq, model_ema, log_writer, args.task, mixup_fn,
+        # )
         if args.output_dir and args.save_ckpt:
             if (epoch + 1) % args.save_ckpt_freq == 0 or epoch + 1 == args.epochs:
                 utils.save_model(
@@ -408,9 +414,9 @@ def main(args, ds_init):
                 prediction_file = utils.dump_predictions(args, predictions, f"{args.task}_val_e{epoch}")
                 result_file = os.path.join(args.output_dir, f"{args.task}_result_val_e{epoch}.json")
                 task_key = "CIDEr"
-                # if utils.is_main_process():
-                #     test_stats = utils.coco_caption_eval(args.output_dir, prediction_file, "{}_val".format(args.task))
-                #     utils.write_result_to_jsonl(test_stats, result_file)
+                if utils.is_main_process():
+                    test_stats = utils.coco_caption_eval(args.output_dir, prediction_file, "{}_val".format(args.task))
+                    utils.write_result_to_jsonl(test_stats, result_file)
                 if args.distributed:
                     torch.distributed.barrier()
                 if not utils.is_main_process():

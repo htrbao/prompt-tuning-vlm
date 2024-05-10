@@ -20,6 +20,7 @@ from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from datasets import get_sentencepiece_model_for_beit3
 
 import utils
+# import wandb
 
 
 class TaskHandler(object):
@@ -246,6 +247,8 @@ class CaptioningHandler(TaskHandler):
         self.tokenizer = get_sentencepiece_model_for_beit3(args)
         self.num_beams = args.num_beams
         self.max_len = args.num_max_bpe_tokens
+        if args.model.endswith("gott"):
+            self.max_len -= 5
         self.length_penalty = args.length_penalty
         self.vocab_size = args.vocab_size
 
@@ -275,7 +278,7 @@ class CaptioningHandler(TaskHandler):
         pad_id = self.tokenizer.pad_token_id
         sep_id = self.tokenizer.sep_token_id
         eos_token_ids = [sep_id]
-
+        
         cls_ids = torch.full(
             (batch_size, 1), cls_id, dtype=torch.long, device=image.device
         )
@@ -285,10 +288,12 @@ class CaptioningHandler(TaskHandler):
         cur_input_ids = torch.cat([cls_ids, mask_ids], dim=1)
         tmp_ids = torch.full(
             (batch_size, self.max_len-1), mask_id, dtype=torch.long, device=image.device
-        )
-        decoding_results = torch.cat([cls_ids, tmp_ids], dim=1)
+        )# batch,26 (58)
+        # batch, 31 (63)
+        decoding_results = torch.cat([cls_ids, tmp_ids], dim=1)# batch, 32 (64)
         
         # Expand input to num beams
+        #batch, 1, 26
         cur_input_ids = cur_input_ids.unsqueeze(1).expand(batch_size, self.num_beams, cur_len)
         cur_input_ids = cur_input_ids.contiguous().view(batch_size * self.num_beams, cur_len)  # (batch_size * num_beams, cur_len)
         decoding_results = decoding_results.unsqueeze(1).expand(batch_size, self.num_beams, self.max_len)
@@ -311,9 +316,13 @@ class CaptioningHandler(TaskHandler):
         incremental_state = {}
 
         while cur_len <= self.max_len:
+            print(cur_len)
             next_token_idx = 1
+            cur_input_ids_shape = [shape for shape in cur_input_ids.size()]
+            cur_input_ids_shape[1] += 5
             padding_masks = torch.full(
-                cur_input_ids.shape, 0, dtype=torch.long, device=image.device
+                cur_input_ids_shape, 0, dtype=torch.long, device=image.device
+                # cur_input_ids.shape, 0, dtype=torch.long, device=image.device
             )
             input_image = image
             if cur_len != 2:
@@ -322,10 +331,12 @@ class CaptioningHandler(TaskHandler):
             outputs, incremental_state_next = model(
                 image=input_image, text_ids=cur_input_ids, language_masked_pos=None,
                 padding_mask=padding_masks, text_len=cur_len, incremental_state=incremental_state)
+            print("outputs: ", outputs.size())
             incremental_state = incremental_state_next
 
             # assert outputs.shape[1] == token_len
             scores = outputs[:, next_token_idx, :] # (batch_size * num_beams, vocab_size)
+            # print("scores: ", scores.size())
             scores = F.log_softmax(scores, dim=-1)  # (batch_size * num_beams, vocab_size)
             assert scores.size() == (batch_size * self.num_beams, self.vocab_size)
             # Add the log prob of the new beams to the log prob of the beginning of the sequence (sum of logs == log of the product)
@@ -387,7 +398,8 @@ class CaptioningHandler(TaskHandler):
             for module in incremental_state:
                 for key in incremental_state[module]:
                     result = incremental_state[module][key].index_select(0, beam_idx)
-                    incremental_state[module][key] = result[:,:,:-1,:]
+                    print(result.size())
+                    incremental_state[module][key] = result[:,:,:-1-5,:]
             
             next_ids = torch.full(
                 (batch_size * self.num_beams, 1), mask_id, dtype=torch.long, device=image.device
@@ -567,6 +579,17 @@ def train_one_epoch(
                 "weight_decay": weight_decay_value, 
                 "grad_norm": grad_norm, 
             }
+
+            # wandb_kwargs = {
+            #     "loss_scale": loss_scale_value, 
+            #     "lr": max_lr, 
+            #     "min_lr": min_lr, 
+            #     "weight_decay": weight_decay_value, 
+            #     "grad_norm": grad_norm, 
+            #     "loss": loss_value, 
+            #     "acc": results["acc"].item()
+            # }
+            # wandb.log(wandb_kwargs)
             log_writer.update(head="opt", **kwargs)
             log_writer.set_step()
 

@@ -296,14 +296,22 @@ class BEiT3ForCaptioningGoTTuning(BEiT3Wrapper):
                 param.requires_grad = False
 
     def forward(self, image, text_ids, padding_mask, language_masked_pos, text_len=None, incremental_state=None, **kwargs):
-        text_len = text_len if text_len is not None else text_ids.size(1)
+        if incremental_state is not None:
+            ctx_len_wo_bos_of_text_ids = self.beit3.prompter.n_ctx - 1 # 1 is bos of text_ids
+        else:
+            ctx_len_wo_bos_of_text_ids = 0
+ 
+        text_len = (text_len if text_len is not None else text_ids.size(1)) 
+        # print("next", text_len)
         image_len = self.beit3.vision_embed.num_position_embeddings()
-        max_len = text_len + image_len
+        # print("next", image_len)
+        
+        max_len = text_len + image_len + ctx_len_wo_bos_of_text_ids
         uni_mask = torch.zeros((max_len, max_len), dtype=torch.long, device=text_ids.device)
         i_start, i_end = 0, image_len
         t_start, t_end = image_len, max_len
         # triangle mask for caption to caption
-        uni_mask[t_start:t_end, t_start:t_end] = torch.tril(torch.ones(text_len, text_len, dtype=torch.long, device=text_ids.device))
+        uni_mask[t_start:t_end, t_start:t_end] = torch.tril(torch.ones(text_len + ctx_len_wo_bos_of_text_ids, text_len + ctx_len_wo_bos_of_text_ids, dtype=torch.long, device=text_ids.device))
         # full attention for caption to image
         uni_mask[t_start:t_end, i_start:i_end] = 1
         # full attention for image to image
@@ -318,10 +326,13 @@ class BEiT3ForCaptioningGoTTuning(BEiT3Wrapper):
         # for incremental decoding
         positions = None
         if image is None:
-            uni_mask = uni_mask[-2:]
+            uni_mask = uni_mask[-2-ctx_len_wo_bos_of_text_ids:]
+            # print("idx_uni_mask", -2)
+      
             padding_mask = None
             # start position (2 (fairseq starts at 2) + cur_position) is equal to text_len
-            positions = torch.arange(text_len, text_ids.size(1) + text_len, device=text_ids.device).long().unsqueeze(0)
+            # print("text_ids: ", text_ids.size())
+            positions = torch.arange(text_len , text_ids.size(1) + text_len + ctx_len_wo_bos_of_text_ids, device=text_ids.device).long().unsqueeze(0)
 
         outputs = self.beit3(
             textual_tokens=text_ids, 

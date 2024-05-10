@@ -209,8 +209,13 @@ def _make_captioning_coco_origin_dataset_index(
     with open(coco_split_json_file, mode="r", encoding="utf-8") as reader:
         data = json.load(reader)
         for item in data["annotations"]:
-            image_path = os.path.join(data_path, f"{split_name}{year}", f"{item['image_id']:012d}.jpg") #COCO_{split_name}{year}_
+            if year == "2017":
+                image_path = os.path.join(data_path, f"{split_name}{year}", f"{item['image_id']:012d}.jpg") #COCO_{split_name}{year}_
+            elif year == "2014":
+                image_path = os.path.join(data_path, f"{split_name}{year}", f"COCO_{split_name}{year}_{item['image_id']:012d}.jpg")
             if split_name == "train":
+                if year == "2014":
+                    image_path = os.path.join(data_path, f"{split_name}{year}", f"COCO_{split_name}{year}_{item['image_id']:012d}.jpg") #
                 tokens = tokenizer.tokenize(item["caption"])
                 token_ids = tokenizer.convert_tokens_to_ids(tokens)
                 items.append({
