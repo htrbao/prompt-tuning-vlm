@@ -49,11 +49,11 @@ class Preprocess:
 
             tokens = [self.bos_token_id] + tokens[:] + [self.eos_token_id]
             num_tokens = len(tokens)
-            padding_mask = [0] * (num_tokens + self.prompt_len-1) #+ [1] * (self.max_len - num_tokens - self.prompt_len)
+            padding_mask = [0] * (num_tokens + self.prompt_len-1) + [1] * (self.max_len - num_tokens - self.prompt_len)
 
             return (
                 torch.LongTensor(
-                    tokens #+ [self.pad_token_id] * (self.max_len - num_tokens)
+                    tokens + [self.pad_token_id] * (self.max_len - num_tokens)
                 ).unsqueeze(0),
                 torch.Tensor(padding_mask).unsqueeze(0),
                 num_tokens,
@@ -70,7 +70,7 @@ class Beit3Model:
         model_name: str = "beit3_base_patch16_480_with_gott_captioning",
         model_path: str = os.path.join(
             CWD,
-            "checkpoint-4.pth",
+            "model/beit3_base_patch16_480_coco_captioning.pth",
         ),
         device: str = "cuda",
     ):
@@ -118,15 +118,14 @@ class Beit3Model:
         # ids = torch.argmax(ans, dim=1)
         return self.preprocessor.tokenizer.decode(ids)
         
-model = Beit3Model(device="cpu")
-prefix_s = ""
-for i in range(10):
-    ans = model.get_answer(Image.open("data/val2014/000000581615.jpg"),
-                        prefix_s + ' ' + s)
-    print(ans)
-    prefix_s = prefix_s + ' ' + ans
-    print(prefix_s)
+# model = Beit3Model(device="cpu")
+# prefix_s = ""
+# for i in range(10):
+#     ans = model.get_answer(Image.open("data/val2014/000000581615.jpg"),
+#                         prefix_s + ' ' + s)
+#     print(ans)
+#     prefix_s = prefix_s + ' ' + ans
+#     print(prefix_s)
 
-
-
-
+test_stats = utils.coco_caption_eval("data/annotations_trainval2014/annotations", "submit_coco_captioning_val_e0.json", "coco_captioning_val")
+utils.write_result_to_jsonl(test_stats, "submit_coco_captioning_val_e0.json")

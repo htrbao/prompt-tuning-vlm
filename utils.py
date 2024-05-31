@@ -888,11 +888,11 @@ def coco_caption_eval(gt_dir, results_file, split):
     urls = {'coco_captioning_val': 'https://storage.googleapis.com/sfr-vision-language-research/datasets/coco_karpathy_val_gt.json',
             'coco_captioning_test': 'https://storage.googleapis.com/sfr-vision-language-research/datasets/coco_karpathy_test_gt.json',
             'nocaps_val': 'https://conversationhub.blob.core.windows.net/beit-share-public/beit3/nocaps/nocaps_val_gt.json?sv=2021-10-04&st=2023-06-08T11%3A16%3A02Z&se=2033-06-09T11%3A16%3A00Z&sr=c&sp=r&sig=N4pfCVmSeq4L4tS8QbrFVsX6f6q844eft8xSuXdxU48%3D'}
-    filenames = {'coco_captioning_val':'coco_karpathy_val_gt.json',
+    filenames = {'coco_captioning_val':'captions_val2014.json',
                  'coco_captioning_test':'coco_karpathy_test_gt.json',
                  'nocaps_val':'nocaps_val_gt.json'}
     
-    download_url(urls[split], gt_dir)
+    # download_url(urls[split], gt_dir)
     annotation_file = os.path.join(gt_dir, filenames[split])
     
     # create coco object and coco_result object
