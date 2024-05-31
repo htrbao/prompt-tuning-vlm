@@ -1,1 +1,1 @@
-# graph-of-thoughts-tuning
+# Prompt Tuning on Vision Language Model
