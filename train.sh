@@ -1,9 +1,9 @@
-CUDA_VISIBLE_DEVICES=2 python run_beit3_finetuning.py \
+CUDA_VISIBLE_DEVICES=3 python run_beit3_finetuning.py \
         --device cuda \
-        --model beit3_base_patch16_224_with_gott \
-        --input_size 224 \
+        --model beit3_base_patch16_480_with_gott \
+        --input_size 480 \
         --task coco_captioning \
-        --batch_size 256 \
+        --batch_size 64 \
         --layer_decay 1.0 \
         --lr 2e-3 \
         --randaug \
@@ -13,7 +13,7 @@ CUDA_VISIBLE_DEVICES=2 python run_beit3_finetuning.py \
         --sentencepiece_model ./model/beit3.spm \
         --finetune model/beit3_base_patch16_480_coco_captioning.pth \
         --data_path . \
-        --output_dir . \
+        --output_dir output/base_soft/ \
         --log_dir log/ \
         --weight_decay 0.05 \
         --seed 42 \
