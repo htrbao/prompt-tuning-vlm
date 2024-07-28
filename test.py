@@ -49,7 +49,7 @@ class Preprocess:
 
             tokens = [self.bos_token_id] + tokens[:] + [self.eos_token_id]
             num_tokens = len(tokens)
-            padding_mask = [0] * (num_tokens + self.prompt_len-1) + [1] * (self.max_len - num_tokens - self.prompt_len)
+            padding_mask = [0] * (num_tokens + self.prompt_len - 1) + [1] * (self.max_len - num_tokens - self.prompt_len + 1)
 
             return (
                 torch.LongTensor(
@@ -80,8 +80,8 @@ class Beit3Model:
     # @lru_cache(maxsize=1)
     def _load_model(self, model_name, model_path, device: str = "cpu"):
         kwargs = {
-            "ori_ctx_init": "Captioning for picture :",
-            "ctx_init": torch.IntTensor([[0, 17,   17,    17,  17,   17,     2]]),
+            "ori_ctx_init": "",
+            "ctx_init": torch.IntTensor([[0, 8311,    9,   41, 2371,   18,    2]]),
             "max_length": 32,
         }
         self.model = create_model(
@@ -100,7 +100,7 @@ class Beit3Model:
             XLMRobertaTokenizer(os.path.join(CWD, "model/beit3.spm"))
         )
 
-        # print(self.preprocessor.preprocess(kwargs["ori_ctx_init"]))
+        print(self.preprocessor.preprocess(kwargs["ori_ctx_init"]))
         self.model.to(device)
 
     def get_answer(self, input_img: Image.Image, input_ques: str):
@@ -111,21 +111,21 @@ class Beit3Model:
         
         ans, _ = self.model(image_input, token_ids, padding_mask, None)
         print("full ans size: ", ans.size())
-        ans = ans[:, len(input_ques.split()) + 5, :]
+        ans = ans[:, len(input_ques.split()) + self.preprocessor.prompt_len - 1, :]
         print("ans size: ", ans.size())
         
         ids = torch.argmax(F.log_softmax(ans, dim=-1), dim=1)
         # ids = torch.argmax(ans, dim=1)
         return self.preprocessor.tokenizer.decode(ids)
         
-# model = Beit3Model(device="cpu")
-# prefix_s = ""
-# for i in range(10):
-#     ans = model.get_answer(Image.open("data/val2014/000000581615.jpg"),
-#                         prefix_s + ' ' + s)
-#     print(ans)
-#     prefix_s = prefix_s + ' ' + ans
-#     print(prefix_s)
+model = Beit3Model(device="cpu")
+prefix_s = ""
+for i in range(10):
+    ans = model.get_answer(Image.open("image.png"),
+                        prefix_s + ' ' + s)
+    print(ans)
+    prefix_s = prefix_s + ' ' + ans
+    print(prefix_s)
 
-test_stats = utils.coco_caption_eval("data/annotations_trainval2014/annotations", "submit_coco_captioning_val_e0.json", "coco_captioning_val")
-utils.write_result_to_jsonl(test_stats, "submit_coco_captioning_val_e0.json")
+# test_stats = utils.coco_caption_eval("data/annotations_trainval2014/annotations", "submit_coco_captioning_val_e0.json", "coco_captioning_val")
+# utils.write_result_to_jsonl(test_stats, "submit_coco_captioning_val_e0.json")

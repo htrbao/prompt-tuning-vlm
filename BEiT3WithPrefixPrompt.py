@@ -38,6 +38,7 @@ class PromptLearner(nn.Module):
         # Soft prompt
         else:
             print("Initializing a generic context")
+            n_ctx += 1
             ctx_vectors = torch.empty(n_ctx, ctx_dim)
             nn.init.normal_(ctx_vectors, std=0.02)
             prompt_prefix = " ".join(["X"] * n_ctx)

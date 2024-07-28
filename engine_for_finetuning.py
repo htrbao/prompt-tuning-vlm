@@ -268,181 +268,183 @@ class CaptioningHandler(TaskHandler):
         self.metric_logger = metric_logger
 
     def eval_batch(self, model, image, image_id=None, **kwargs):
-        cur_len = 2
-        num_keep_best = 1
-        TOPN_PER_BEAM = 3
+        with torch.no_grad():
+            cur_len = 2
+            num_keep_best = 1
+            TOPN_PER_BEAM = 3
 
-        batch_size = image.size(0)
-        mask_id = self.tokenizer.mask_token_id
-        cls_id = self.tokenizer.cls_token_id
-        pad_id = self.tokenizer.pad_token_id
-        sep_id = self.tokenizer.sep_token_id
-        eos_token_ids = [sep_id]
-        
-        cls_ids = torch.full(
-            (batch_size, 1), cls_id, dtype=torch.long, device=image.device
-        )
-        mask_ids = torch.full(
-            (batch_size, 1), mask_id, dtype=torch.long, device=image.device
-        )
-        cur_input_ids = torch.cat([cls_ids, mask_ids], dim=1)
-        tmp_ids = torch.full(
-            (batch_size, self.max_len-1), mask_id, dtype=torch.long, device=image.device
-        )# batch,26 (58)
-        # batch, 31 (63)
-        decoding_results = torch.cat([cls_ids, tmp_ids], dim=1)# batch, 32 (64)
-        
-        # Expand input to num beams
-        #batch, 1, 26
-        cur_input_ids = cur_input_ids.unsqueeze(1).expand(batch_size, self.num_beams, cur_len)
-        cur_input_ids = cur_input_ids.contiguous().view(batch_size * self.num_beams, cur_len)  # (batch_size * num_beams, cur_len)
-        decoding_results = decoding_results.unsqueeze(1).expand(batch_size, self.num_beams, self.max_len)
-        decoding_results = decoding_results.contiguous().view(batch_size * self.num_beams, self.max_len)  # (batch_size * num_beams, cur_len)
-        image = image.unsqueeze(1).expand(batch_size, self.num_beams, image.size(-3), image.size(-2), image.size(-1))
-        image = image.contiguous().view(batch_size * self.num_beams, image.size(-3), image.size(-2), image.size(-1))
-
-        generated_hyps = [
-            utils.BeamHypotheses(
-                num_keep_best, self.max_len, length_penalty=self.length_penalty, early_stopping=False
-            ) for _ in range(batch_size)
-        ]
-        # scores for each sentence in the beam
-        beam_scores = torch.zeros((batch_size, self.num_beams), dtype=torch.float, device=cur_input_ids.device)
-        beam_scores[:, 1:] = -1e9
-        beam_scores = beam_scores.view(-1)  # shape (batch_size * num_beams,)
-
-        # done sentences
-        done = [False for _ in range(batch_size)]
-        incremental_state = {}
-
-        while cur_len <= self.max_len:
- 
-            next_token_idx = 1
-            cur_input_ids_shape = [shape for shape in cur_input_ids.size()]
-            cur_input_ids_shape[1] += 5
-            padding_masks = torch.full(
-                cur_input_ids_shape, 0, dtype=torch.long, device=image.device
-                # cur_input_ids.shape, 0, dtype=torch.long, device=image.device
+            batch_size = image.size(0)
+            mask_id = self.tokenizer.mask_token_id
+            cls_id = self.tokenizer.cls_token_id
+            pad_id = self.tokenizer.pad_token_id
+            sep_id = self.tokenizer.sep_token_id
+            eos_token_ids = [sep_id]
+            
+            cls_ids = torch.full(
+                (batch_size, 1), cls_id, dtype=torch.long, device=image.device
             )
-            input_image = image
-            if cur_len != 2:
-                input_image = None
+            mask_ids = torch.full(
+                (batch_size, 1), mask_id, dtype=torch.long, device=image.device
+            )
+            cur_input_ids = torch.cat([cls_ids, mask_ids], dim=1)
+            tmp_ids = torch.full(
+                (batch_size, self.max_len-1), mask_id, dtype=torch.long, device=image.device
+            )# batch,26 (58)
+            # batch, 31 (63)
+            decoding_results = torch.cat([cls_ids, tmp_ids], dim=1)# batch, 32 (64)
+            
+            # Expand input to num beams
+            #batch, 1, 26
+            cur_input_ids = cur_input_ids.unsqueeze(1).expand(batch_size, self.num_beams, cur_len)
+            cur_input_ids = cur_input_ids.contiguous().view(batch_size * self.num_beams, cur_len)  # (batch_size * num_beams, cur_len)
+            decoding_results = decoding_results.unsqueeze(1).expand(batch_size, self.num_beams, self.max_len)
+            decoding_results = decoding_results.contiguous().view(batch_size * self.num_beams, self.max_len)  # (batch_size * num_beams, cur_len)
+            image = image.unsqueeze(1).expand(batch_size, self.num_beams, image.size(-3), image.size(-2), image.size(-1))
+            image = image.contiguous().view(batch_size * self.num_beams, image.size(-3), image.size(-2), image.size(-1))
 
-            outputs, incremental_state_next = model(
-                image=input_image, text_ids=cur_input_ids, language_masked_pos=None,
-                padding_mask=padding_masks, text_len=cur_len, incremental_state=incremental_state)
-      
-            incremental_state = incremental_state_next
+            generated_hyps = [
+                utils.BeamHypotheses(
+                    num_keep_best, self.max_len, length_penalty=self.length_penalty, early_stopping=False
+                ) for _ in range(batch_size)
+            ]
+            # scores for each sentence in the beam
+            beam_scores = torch.zeros((batch_size, self.num_beams), dtype=torch.float, device=cur_input_ids.device)
+            beam_scores[:, 1:] = -1e9
+            beam_scores = beam_scores.view(-1)  # shape (batch_size * num_beams,)
 
-            # assert outputs.shape[1] == token_len
-            scores = outputs[:, next_token_idx, :] # (batch_size * num_beams, vocab_size)
-            # print("scores: ", scores.size())
-            scores = F.log_softmax(scores, dim=-1)  # (batch_size * num_beams, vocab_size)
-            assert scores.size() == (batch_size * self.num_beams, self.vocab_size)
-            # Add the log prob of the new beams to the log prob of the beginning of the sequence (sum of logs == log of the product)
-            _scores = scores + beam_scores[:, None].expand_as(scores)  # (batch_size * num_beams, vocab_size)
-            # re-organize to group the beam together (we are keeping top hypothesis accross beams)
-            _scores = _scores.view(batch_size, self.num_beams * self.vocab_size)  # (batch_size, num_beams * vocab_size)
-            next_scores, next_words = torch.topk(_scores, TOPN_PER_BEAM * self.num_beams, dim=1, largest=True, sorted=True)
-            assert next_scores.size() == next_words.size() == (batch_size, TOPN_PER_BEAM * self.num_beams)
+            # done sentences
+            done = [False for _ in range(batch_size)]
+            incremental_state = {}
 
-            # next batch beam content
-            # list of (batch_size * num_beams) tuple(next hypothesis score, next word, current position in the batch)
-            next_batch_beam = []
-            # for each sentence
-            for batch_ex in range(batch_size):
-                # if we are done with this sentence
-                done[batch_ex] = done[batch_ex] or generated_hyps[batch_ex].is_done(next_scores[batch_ex].max().item())
-                if done[batch_ex]:
-                    next_batch_beam.extend([(0, pad_id, 0)] * self.num_beams)  # pad the batch
-                    continue
+            while cur_len <= self.max_len:
+    
+                next_token_idx = 1
+                cur_input_ids_shape = [shape for shape in cur_input_ids.size()]
+                # cur_input_ids_shape[1] += 5
+                padding_masks = torch.full(
+                    cur_input_ids_shape, 0, dtype=torch.long, device=image.device
+                    # cur_input_ids.shape, 0, dtype=torch.long, device=image.device
+                )
+                input_image = image
+                if cur_len != 2:
+                    input_image = None
+                
+                outputs, incremental_state_next = model(
+                    image=input_image, text_ids=cur_input_ids, language_masked_pos=None,
+                    padding_mask=padding_masks, text_len=cur_len, incremental_state=incremental_state)
+        
+                incremental_state = incremental_state_next
 
-                # next sentence beam content
-                next_sent_beam = []
-                for idx, score in zip(next_words[batch_ex], next_scores[batch_ex]):
-                    # get beam and word IDs
-                    beam_id = idx // self.vocab_size
-                    word_id = idx % self.vocab_size
-                    # end of sentence, or next word
-                    # if word_id.item() in eos_token_ids or cur_len + 1 == max_len:
-                    if (word_id.item() in eos_token_ids and cur_len + 1 <= self.max_len) or (cur_len + 1 == self.max_len):
-                        generated_hyps[batch_ex].add(
-                            decoding_results[batch_ex * self.num_beams + beam_id, :cur_len].clone(), score.item()
-                        )
+                # assert outputs.shape[1] == token_len
+                scores = outputs[:, next_token_idx, :] # (batch_size * num_beams, vocab_size)
+                # print("scores: ", scores.size())
+                scores = F.log_softmax(scores, dim=-1)  # (batch_size * num_beams, vocab_size)
+                assert scores.size() == (batch_size * self.num_beams, self.vocab_size)
+                # Add the log prob of the new beams to the log prob of the beginning of the sequence (sum of logs == log of the product)
+                _scores = scores + beam_scores[:, None].expand_as(scores)  # (batch_size * num_beams, vocab_size)
+                # re-organize to group the beam together (we are keeping top hypothesis accross beams)
+                _scores = _scores.view(batch_size, self.num_beams * self.vocab_size)  # (batch_size, num_beams * vocab_size)
+                next_scores, next_words = torch.topk(_scores, TOPN_PER_BEAM * self.num_beams, dim=1, largest=True, sorted=True)
+                assert next_scores.size() == next_words.size() == (batch_size, TOPN_PER_BEAM * self.num_beams)
+
+                # next batch beam content
+                # list of (batch_size * num_beams) tuple(next hypothesis score, next word, current position in the batch)
+                next_batch_beam = []
+                # for each sentence
+                for batch_ex in range(batch_size):
+                    # if we are done with this sentence
+                    done[batch_ex] = done[batch_ex] or generated_hyps[batch_ex].is_done(next_scores[batch_ex].max().item())
+                    if done[batch_ex]:
+                        next_batch_beam.extend([(0, pad_id, 0)] * self.num_beams)  # pad the batch
+                        continue
+
+                    # next sentence beam content
+                    next_sent_beam = []
+                    for idx, score in zip(next_words[batch_ex], next_scores[batch_ex]):
+                        # get beam and word IDs
+                        beam_id = idx // self.vocab_size
+                        word_id = idx % self.vocab_size
+                        # end of sentence, or next word
+                        # if word_id.item() in eos_token_ids or cur_len + 1 == max_len:
+                        if (word_id.item() in eos_token_ids and cur_len + 1 <= self.max_len) or (cur_len + 1 == self.max_len):
+                            generated_hyps[batch_ex].add(
+                                decoding_results[batch_ex * self.num_beams + beam_id, :cur_len].clone(), score.item()
+                            )
+                        else:
+                            next_sent_beam.append((score, word_id, batch_ex * self.num_beams + beam_id))
+                        # the beam for next step is full
+                        if len(next_sent_beam) == self.num_beams:
+                            break
+
+                    # update next beam content
+                    if cur_len + 1 == self.max_len:
+                        assert len(next_sent_beam) == 0
                     else:
-                        next_sent_beam.append((score, word_id, batch_ex * self.num_beams + beam_id))
-                    # the beam for next step is full
-                    if len(next_sent_beam) == self.num_beams:
-                        break
+                        assert len(next_sent_beam) == self.num_beams
 
-                # update next beam content
-                if cur_len + 1 == self.max_len:
-                    assert len(next_sent_beam) == 0
-                else:
-                    assert len(next_sent_beam) == self.num_beams
+                    if len(next_sent_beam) == 0:
+                        next_sent_beam = [(0, pad_id, 0)] * self.num_beams  # pad the batch
+                    next_batch_beam.extend(next_sent_beam)
+                    assert len(next_batch_beam) == self.num_beams * (batch_ex + 1)
+                
+                # sanity check / prepare next batch
+                assert len(next_batch_beam) == batch_size * self.num_beams
+                beam_scores = beam_scores.new([x[0] for x in next_batch_beam])
+                beam_words = cur_input_ids.new([x[1] for x in next_batch_beam])
+                beam_idx = cur_input_ids.new([x[2] for x in next_batch_beam])
 
-                if len(next_sent_beam) == 0:
-                    next_sent_beam = [(0, pad_id, 0)] * self.num_beams  # pad the batch
-                next_batch_beam.extend(next_sent_beam)
-                assert len(next_batch_beam) == self.num_beams * (batch_ex + 1)
+                # re-order batch
+                cur_input_ids = cur_input_ids[beam_idx, :]
+                decoding_results = decoding_results[beam_idx, :]
+                for module in incremental_state:
+                    for key in incremental_state[module]:
+                        result = incremental_state[module][key].index_select(0, beam_idx)
+    
+                        # incremental_state[module][key] = result[:,:,:-1-5,:]
+                        incremental_state[module][key] = result[:,:,:-1,:]
+                
+                next_ids = torch.full(
+                    (batch_size * self.num_beams, 1), mask_id, dtype=torch.long, device=image.device
+                )
+                cur_input_ids = torch.cat([beam_words.unsqueeze(1), next_ids], dim=1)
+                decoding_results[:, cur_len-1] = beam_words
+                # update current length
+                cur_len = cur_len + 1
+                # stop when we are done with each sentence
+                if all(done):
+                    break
             
-            # sanity check / prepare next batch
-            assert len(next_batch_beam) == batch_size * self.num_beams
-            beam_scores = beam_scores.new([x[0] for x in next_batch_beam])
-            beam_words = cur_input_ids.new([x[1] for x in next_batch_beam])
-            beam_idx = cur_input_ids.new([x[2] for x in next_batch_beam])
+            # select the best hypotheses
+            tgt_len = torch.ones(batch_size, num_keep_best, dtype=torch.long)
+            logprobs = torch.zeros(batch_size, num_keep_best,
+                        dtype=torch.float).fill_(-1e5).to(cur_input_ids.device)
+            all_best = []
 
-            # re-order batch
-            cur_input_ids = cur_input_ids[beam_idx, :]
-            decoding_results = decoding_results[beam_idx, :]
-            for module in incremental_state:
-                for key in incremental_state[module]:
-                    result = incremental_state[module][key].index_select(0, beam_idx)
-  
-                    incremental_state[module][key] = result[:,:,:-1-5,:]
+            for i, hypotheses in enumerate(generated_hyps):
+                    best = []
+                    hyp_scores = torch.tensor([x[0] for x in hypotheses.hyp])
+                    _, best_indices = torch.topk(hyp_scores,
+                            min(num_keep_best, len(hyp_scores)), largest=True)
+                    for best_idx, hyp_idx in enumerate(best_indices):
+                        conf, best_hyp = hypotheses.hyp[hyp_idx]
+                        best.append(best_hyp)
+                        logprobs[i, best_idx] = conf
+                        tgt_len[i, best_idx] = len(best_hyp) + 1  # +1 for the <EOS> symbol
+                    all_best.append(best)
             
-            next_ids = torch.full(
-                (batch_size * self.num_beams, 1), mask_id, dtype=torch.long, device=image.device
-            )
-            cur_input_ids = torch.cat([beam_words.unsqueeze(1), next_ids], dim=1)
-            decoding_results[:, cur_len-1] = beam_words
-            # update current length
-            cur_len = cur_len + 1
-            # stop when we are done with each sentence
-            if all(done):
-                break
-        
-        # select the best hypotheses
-        tgt_len = torch.ones(batch_size, num_keep_best, dtype=torch.long)
-        logprobs = torch.zeros(batch_size, num_keep_best,
-                    dtype=torch.float).fill_(-1e5).to(cur_input_ids.device)
-        all_best = []
-
-        for i, hypotheses in enumerate(generated_hyps):
-                best = []
-                hyp_scores = torch.tensor([x[0] for x in hypotheses.hyp])
-                _, best_indices = torch.topk(hyp_scores,
-                        min(num_keep_best, len(hyp_scores)), largest=True)
-                for best_idx, hyp_idx in enumerate(best_indices):
-                    conf, best_hyp = hypotheses.hyp[hyp_idx]
-                    best.append(best_hyp)
-                    logprobs[i, best_idx] = conf
-                    tgt_len[i, best_idx] = len(best_hyp) + 1  # +1 for the <EOS> symbol
-                all_best.append(best)
-        
-        # generate target batch, pad to the same length
-        decoded = cur_input_ids.new(batch_size, num_keep_best, self.max_len).fill_(pad_id)
-        for batch_idx, best in enumerate(all_best):
-            for best_idx, hypo in enumerate(best):
-                decoded[batch_idx, best_idx, : tgt_len[batch_idx, best_idx] - 1] = hypo
-                decoded[batch_idx, best_idx, tgt_len[batch_idx, best_idx] - 1] = eos_token_ids[0]
-        
-        captions = self.tokenizer.batch_decode(decoded.squeeze(1), skip_special_tokens=True)
-        for qid, pred in zip(image_id, captions):
-            self.predictions.append({
-                "image_id": qid.item(), 
-                "caption": pred, 
-            })
+            # generate target batch, pad to the same length
+            decoded = cur_input_ids.new(batch_size, num_keep_best, self.max_len).fill_(pad_id)
+            for batch_idx, best in enumerate(all_best):
+                for best_idx, hypo in enumerate(best):
+                    decoded[batch_idx, best_idx, : tgt_len[batch_idx, best_idx] - 1] = hypo
+                    decoded[batch_idx, best_idx, tgt_len[batch_idx, best_idx] - 1] = eos_token_ids[0]
+            
+            captions = self.tokenizer.batch_decode(decoded.squeeze(1), skip_special_tokens=True)
+            for qid, pred in zip(image_id, captions):
+                self.predictions.append({
+                    "image_id": qid.item(), 
+                    "caption": pred, 
+                })
 
     def after_eval(self, **kwargs):
         return self.predictions, "prediction"

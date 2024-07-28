@@ -229,10 +229,10 @@ def main(args, ds_init):
     print(args)
 
     # for Wandb
-    wandb.init(
-        name=f"{args.model}_{args.task}_{datetime.datetime.now().strftime('%Y_%m_%d')}",
-        project="prompt-tuning-vlm-report",
-    )
+    # wandb.init(
+    #     name=f"soft_{args.model}_{args.task}_{datetime.datetime.now().strftime('%Y_%m_%d')}",
+    #     project="prompt-tuning-vlm-report",
+    # )
 
     device = torch.device(args.device)
 
@@ -396,11 +396,11 @@ def main(args, ds_init):
             data_loader_train.sampler.set_epoch(epoch)
         if log_writer is not None:
             log_writer.set_step(epoch * num_training_steps_per_epoch * args.update_freq)
-        train_stats = train_one_epoch(
-            model, data_loader_train, optimizer, device, task_handler, epoch, 
-            epoch * num_training_steps_per_epoch, lr_schedule_values, loss_scaler, 
-            args.clip_grad, args.update_freq, model_ema, log_writer, args.task, mixup_fn,
-        )
+        # train_stats = train_one_epoch(
+        #     model, data_loader_train, optimizer, device, task_handler, epoch, 
+        #     epoch * num_training_steps_per_epoch, lr_schedule_values, loss_scaler, 
+        #     args.clip_grad, args.update_freq, model_ema, log_writer, args.task, mixup_fn,
+        # )
         if args.output_dir and args.save_ckpt:
             if (epoch + 1) % args.save_ckpt_freq == 0 or epoch + 1 == args.epochs:
                 utils.save_model(

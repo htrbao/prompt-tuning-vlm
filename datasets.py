@@ -214,8 +214,6 @@ def _make_captioning_coco_origin_dataset_index(
             elif year == "2014":
                 image_path = os.path.join(data_path, f"{split_name}{year}", f"COCO_{split_name}{year}_{item['image_id']:012d}.jpg")
             if split_name == "train":
-                if year == "2014":
-                    image_path = os.path.join(data_path, f"{split_name}{year}", f"COCO_{split_name}{year}_{item['image_id']:012d}.jpg") #
                 tokens = tokenizer.tokenize(item["caption"])
                 token_ids = tokenizer.convert_tokens_to_ids(tokens)
                 items.append({
@@ -224,6 +222,8 @@ def _make_captioning_coco_origin_dataset_index(
                     "image_id": item["image_id"], 
                 })
             else:
+                if not os.path.isfile(image_path):
+                    continue
                 items.append({
                     "image_path": image_path, 
                     "text_segment": None, 
@@ -883,9 +883,9 @@ def create_dataset_by_split(args, split, is_train=True):
         batch_size = args.eval_batch_size
     else:
         batch_size = int(args.batch_size * 1.5)
-
+    
     return create_dataloader(
-        dataset, is_train=is_train, batch_size=batch_size, 
+        dataset, is_train=is_train, batch_size=45 if split == 'val' else batch_size, 
         num_workers=args.num_workers, pin_mem=args.pin_mem, dist_eval=args.dist_eval, 
     )
 
